@@ -20,7 +20,7 @@ app.use(function(req, res, next) {
 
 app.use(morgan("dev"));
 // Não esquecer de criar variável de ambiente com o endereço do seu app React (local ou deployado no Netlify)
-app.use(cors({ origin: "https://finalironlibrary.netlify.app" }));
+app.use(cors({ origin: "https://main--finalironlibrary.netlify.app" }));
 
 const bookRouter = require("./routes/book.routes");
 app.use("/api", bookRouter);
