@@ -2,94 +2,98 @@ const router = require("express").Router();
 const Book = require("../models/Book.model");
 const isAuthenticated = require("../middlewares/isAuthenticated");
 const uploader = require("../config/cloudinary.config");
+const attachCurrentUser = require("../middlewares/attachCurrentUser");
 
 
-router.post("/book", isAuthenticated, async (req, res) => {
+router.post("/book", isAuthenticated, attachCurrentUser, async (req, res) => {
     try {
 
-      const { title, author } = req.body;
-  
-      // Cria o novo livro
-      const result = await Book.create({ ...req.body });
-  
-      return res.status(201).json(result);
+      const criateBook = await Book.create({
+        ...req.body,
+      });
+
+      res.status(201).json(criateBook);
     } catch (err) {
-      console.error(err);
-      return res.status(500).json({ msg: "Internal" });
+      console.log(err);
+      res.status(500).json(err);
     }
-  });
+  }
+);
 
-  router.get("/book", async (req, res) => {
-    try {
-      const result = await Book.find();
-  
-      return res.status(200).json(result);
+router.get("/book", async (req,res) => {
+  try {
+    const books = await Book.find();
+    res.status(200).json(books);
+
     } catch (err) {
-      console.error(err);
-      return res.status(500).json({ msg: "Internal server error." });
+      console.log(err);
+      res.status(500).json(err);
     }
-  });
+  }
+);
 
-  router.get("/book:_id", async (req, res) => {
-    try {
-        const { _id } = req.params;
-    
-        const result = await Book.findOne({ _id })
-          .populate("books") // carregar todos os objetos de livros no lugar de somente os ids
-          .populate({
-            path: "livros",
-            populate: { path: "title", model: "Book" },
-          })
-    
-        return res.status(200).json(result);
-      } catch (err) {
-        console.error(err);
-        return res.status(500).json({ msg: "Internal server error." });
+router.get('/book/:id', async (req, res) => {
+  try {
+    const book = await Book.findOne({ _id: req.params.id })
+  
+      if (!book) {
+        return res.status(404).json({msg:'Book not found'})
       }
-  });
-
-  router.patch("/book/:_id", isAuthenticated, async (req, res) => {
-    try {
-      const { _id } = req.params;
   
-      const result = await Book.findOneAndUpdate(
-        { _id, ownerId: req.user._id },
-        { $set: req.body },
-        { new: true, runValidators: true }
+      res.status(200).json(book)
+  
+    } catch (err) {
+      console.log(err)
+      req.status(500).json(err);
+    }
+  }
+);
+
+router.patch("/book/:id", isAuthenticated,  async (req, res) => {
+  try {
+    const book = await Book.findOne({ _id: req.params.id });
+      if (!book) {
+        return res.status(404).json({ msg:"Book not found." });
+      }
+  
+    const BookUpdate = await Book.findOneAndUpdate(
+      { _id: req.params.id },
+      { $set: req.body },
+      { new: true, runValidators: true }
       );
   
-      return res.status(200).json(result);
-    } catch (err) {
-      console.error(err);
-      return res.status(500).json({ msg: "Internal server error." });
+        res.status(200).json(BookUpdate);
+      } catch (err) {
+        console.log(err);
+        res.status(500).json(err);
     }
-  });
+  }
+);
 
-  router.delete("/book/:_id", isAuthenticated, async (req, res) => {
-    try {
-      const { _id } = req.params;
-
-      const result = await Book.findOneAndDelete(
-        { _id, ownerId: req.user._id },
-        { new: true }
-      );
-      return res.status(200).json({});
+router.delete("/book/:id", isAuthenticated, async (req, res) => {
+  try {
+    const result = await Book.deleteOne({_id: req.params.id})
+    
+      if(result.deletedCount < 1) {
+        return res.status(400),json({msg:"Book not found"})
+      }
+        res.status(200).json({});
     } catch (err) {
-      console.error(err);
-      return res.status(500).json({ msg: "Internal server error." });
+      console.log(err)
+      res.status(500).json(err)
     }
-  });
+  }
+);
 
-//rota upload imagem do livro
-router.post("/upload", uploader.single("coverImage"), (req, res) => {
-    if (!req.file) {
-      return res
-        .status(500)
-        .json({ msgUpload: "It was not possible to upload this file" });
+router.post("/upload", isAuthenticated, uploader.single("picture"), (req, res) => {
+  if (!req.file) {
+    return res
+      .status(500)
+      .json({ msgUpload: "It was not possible to upload this file" });
     }
   
-    return res.status(201).json({ fileUrl: req.file.path });
-  });
-
+    return res.status(201).json({  url: req.file.path  });
+  }
+);
 
   module.exports = router;
